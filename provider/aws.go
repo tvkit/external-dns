@@ -287,7 +287,9 @@ func (p *AWSProvider) records(zones map[string]*route53.HostedZone) ([]*endpoint
 				}
 				ep := endpoint.
 					NewEndpointWithTTL(wildcardUnescape(aws.StringValue(r.Name)), endpoint.RecordTypeCNAME, ttl, aws.StringValue(r.AliasTarget.DNSName)).
-					WithProviderSpecific(providerSpecificEvaluateTargetHealth, fmt.Sprintf("%t", aws.BoolValue(r.AliasTarget.EvaluateTargetHealth)))
+					WithProviderSpecific(providerSpecificEvaluateTargetHealth, fmt.Sprintf("%t", aws.BoolValue(r.AliasTarget.EvaluateTargetHealth))).
+					WithProviderSpecific("alias", "true").
+					WithProviderSpecific("hostedZoneID", aws.StringValue(r.AliasTarget.HostedZoneId))
 				newEndpoints = append(newEndpoints, ep)
 			}
 
@@ -482,7 +484,6 @@ func (p *AWSProvider) newChange(action string, ep *endpoint.Endpoint, recordsCac
 		},
 	}
 	dualstack := false
-
 	if useAlias(ep, p.preferCNAME) {
 		evalTargetHealth := p.evaluateTargetHealth
 		if prop, ok := ep.GetProviderSpecificProperty(providerSpecificEvaluateTargetHealth); ok {
@@ -726,10 +727,12 @@ func isAWSAlias(ep *endpoint.Endpoint, addrs []*endpoint.Endpoint) string {
 	if prop, exists := ep.GetProviderSpecificProperty("alias"); ep.RecordType == endpoint.RecordTypeCNAME && exists && prop.Value == "true" {
 		for _, addr := range addrs {
 			if len(ep.Targets) > 0 && addr.DNSName == ep.Targets[0] {
-				if hostedZone := canonicalHostedZone(addr.Targets[0]); hostedZone != "" {
-					return hostedZone
+				if hostedZoneID, ok := ep.GetProviderSpecificProperty("hostedZoneID"); ok {
+					return hostedZoneID.Value
 				}
-
+				if canonicalHostedZone := canonicalHostedZone(addr.Targets[0]); canonicalHostedZone != "" {
+					return canonicalHostedZone
+				}
 			}
 		}
 	}
