@@ -21,6 +21,7 @@ import (
 
 	"github.com/kubernetes-sigs/external-dns/endpoint"
 	"github.com/kubernetes-sigs/external-dns/plan"
+	"github.com/kubernetes-sigs/external-dns/provider"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,6 +30,7 @@ import (
 // each entry includes owner information
 // ApplyChanges(changes *plan.Changes) propagates the changes to the DNS Provider API and correspondingly updates ownership depending on type of registry being used
 type Registry interface {
+	Provider() *provider.Provider
 	Records() ([]*endpoint.Endpoint, error)
 	ApplyChanges(ctx context.Context, changes *plan.Changes) error
 }

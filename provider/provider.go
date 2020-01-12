@@ -31,6 +31,11 @@ type Provider interface {
 	ApplyChanges(ctx context.Context, changes *plan.Changes) error
 }
 
+type EndpointModifyingProvider interface {
+	Provider
+	ModifyEndpoints([]*endpoint.Endpoint)
+}
+
 type contextKey struct {
 	name string
 }

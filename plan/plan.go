@@ -181,12 +181,6 @@ func shouldUpdateProviderSpecific(desired, current *endpoint.Endpoint) bool {
 		return false
 	}
 	for _, c := range current.ProviderSpecific {
-		// don't consider target health when detecting changes
-		// see: https://github.com/kubernetes-sigs/external-dns/issues/869#issuecomment-458576954
-		if c.Name == "aws/evaluate-target-health" {
-			continue
-		}
-
 		found := false
 		for _, d := range desired.ProviderSpecific {
 			if d.Name == c.Name {

@@ -58,6 +58,10 @@ func NewTXTRegistry(provider provider.Provider, txtPrefix, ownerID string, cache
 	}, nil
 }
 
+func (im *TXTRegistry) Provider() *provider.Provider {
+	return &im.provider
+}
+
 // Records returns the current records from the registry excluding TXT Records
 // If TXT records was created previously to indicate ownership its corresponding value
 // will be added to the endpoints Labels map
