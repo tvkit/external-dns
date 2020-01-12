@@ -28,10 +28,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/kubernetes-sigs/external-dns/endpoint"
-	"github.com/kubernetes-sigs/external-dns/plan"
 	"github.com/linki/instrumented_http"
 	log "github.com/sirupsen/logrus"
+
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
 )
 
 const (
@@ -785,9 +786,9 @@ func canonicalHostedZone(hostname string) string {
 }
 
 // cleanZoneID removes the "/hostedzone/" prefix
-func cleanZoneID(ID string) string {
-	if strings.HasPrefix(ID, "/hostedzone/") {
-		ID = strings.TrimPrefix(ID, "/hostedzone/")
+func cleanZoneID(id string) string {
+	if strings.HasPrefix(id, "/hostedzone/") {
+		id = strings.TrimPrefix(id, "/hostedzone/")
 	}
-	return ID
+	return id
 }

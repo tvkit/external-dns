@@ -27,12 +27,13 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/kubernetes-sigs/external-dns/endpoint"
-	"github.com/kubernetes-sigs/external-dns/internal/testutils"
-	"github.com/kubernetes-sigs/external-dns/plan"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/internal/testutils"
+	"sigs.k8s.io/external-dns/plan"
 )
 
 const (
@@ -74,7 +75,7 @@ func NewRoute53APIStub() *Route53APIStub {
 
 func (r *Route53APIStub) ListResourceRecordSetsPages(input *route53.ListResourceRecordSetsInput, fn func(p *route53.ListResourceRecordSetsOutput, lastPage bool) (shouldContinue bool)) error {
 	output := route53.ListResourceRecordSetsOutput{} // TODO: Support optional input args.
-	if len(r.recordSets) <= 0 {
+	if len(r.recordSets) == 0 {
 		output.ResourceRecordSets = []*route53.ResourceRecordSet{}
 	} else if _, ok := r.recordSets[aws.StringValue(input.HostedZoneId)]; !ok {
 		output.ResourceRecordSets = []*route53.ResourceRecordSet{}

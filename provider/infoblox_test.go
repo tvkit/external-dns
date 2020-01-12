@@ -25,9 +25,10 @@ import (
 	"testing"
 
 	ibclient "github.com/infobloxopen/infoblox-go-client"
-	"github.com/kubernetes-sigs/external-dns/endpoint"
-	"github.com/kubernetes-sigs/external-dns/plan"
 	"github.com/stretchr/testify/assert"
+
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
 )
 
 type mockIBConnector struct {
@@ -167,7 +168,7 @@ func (client *mockIBConnector) GetObject(obj ibclient.IBObject, ref string, res 
 }
 
 func (client *mockIBConnector) DeleteObject(ref string) (refRes string, err error) {
-	re, _ := regexp.Compile(`([^/]+)/[^:]+:([^/]+)/default`)
+	re := regexp.MustCompile(`([^/]+)/[^:]+:([^/]+)/default`)
 	result := re.FindStringSubmatch(ref)
 
 	switch result[1] {

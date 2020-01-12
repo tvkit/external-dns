@@ -19,17 +19,15 @@ package provider
 import (
 	"context"
 	"errors"
-
-	//"fmt"
 	"net/http"
 	"strings"
 	"testing"
 
+	pgo "github.com/ffledgling/pdns-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	pgo "github.com/ffledgling/pdns-go"
-	"github.com/kubernetes-sigs/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/endpoint"
 )
 
 // FIXME: What do we do about labels?
@@ -538,7 +536,7 @@ func (c *PDNSAPIClientStub) PatchZone(zoneID string, zoneStruct pgo.Zone) (*http
 /******************************************************************************/
 // API that returns a zones with no records
 type PDNSAPIClientStubEmptyZones struct {
-	// Keep track of all zones we recieve via PatchZone
+	// Keep track of all zones we receive via PatchZone
 	patchedZones []pgo.Zone
 }
 

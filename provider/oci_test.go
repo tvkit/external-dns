@@ -26,8 +26,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kubernetes-sigs/external-dns/endpoint"
-	"github.com/kubernetes-sigs/external-dns/plan"
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
 )
 
 type mockOCIDNSClient struct{}
@@ -624,7 +624,7 @@ func TestMutableMockOCIDNSClient(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// GetZoneRecords and check we're back in the origional state
+	// GetZoneRecords and check we're back in the original state
 	recordsResponse, err = client.GetZoneRecords(context.Background(), dns.GetZoneRecordsRequest{
 		ZoneNameOrId: zones[0].Id,
 	})

@@ -22,10 +22,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kubernetes-sigs/external-dns/endpoint"
-	"github.com/kubernetes-sigs/external-dns/plan"
 	log "github.com/sirupsen/logrus"
 	"github.com/vinyldns/go-vinyldns/vinyldns"
+
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
 )
 
 const (
@@ -96,7 +97,7 @@ func (p *vinyldnsProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 		}
 
 		for _, r := range records {
-			if supportedRecordType(string(r.Type)) {
+			if supportedRecordType(r.Type) {
 				recordsCount := len(r.Records)
 				log.Debugf(fmt.Sprintf("%s.%s.%d.%s", r.Name, r.Type, recordsCount, zone.Name))
 
@@ -114,7 +115,7 @@ func (p *vinyldnsProvider) Records() (endpoints []*endpoint.Endpoint, _ error) {
 						}
 					}
 
-					endpoints = append(endpoints, endpoint.NewEndpointWithTTL(r.Name+"."+zone.Name, string(r.Type), endpoint.TTL(r.TTL), targets...))
+					endpoints = append(endpoints, endpoint.NewEndpointWithTTL(r.Name+"."+zone.Name, r.Type, endpoint.TTL(r.TTL), targets...))
 				}
 			}
 		}
