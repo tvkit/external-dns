@@ -26,6 +26,7 @@ import (
 
 	kubeinformers "k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
+	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 
 	log "github.com/sirupsen/logrus"
@@ -52,6 +53,7 @@ type istioVirtualServiceSource struct {
 	combineFQDNAnnotation    bool
 	ignoreHostnameAnnotation bool
 	serviceInformer          coreinformers.ServiceInformer
+	ingressInformer          extensionsinformers.IngressInformer
 }
 
 // NewIstioGatewaySource creates a new istioVirtualServiceSource with the given config.
@@ -82,6 +84,7 @@ func NewIstioVirtualServiceSource(
 	// Set resync period to 0, to prevent processing when nothing has changed
 	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, 0, kubeinformers.WithNamespace(namespace))
 	serviceInformer := informerFactory.Core().V1().Services()
+	ingressInformer := informerFactory.Extensions().V1beta1().Ingresses()
 
 	// Add default resource event handlers to properly initialize informer.
 	serviceInformer.Informer().AddEventHandler(
@@ -112,6 +115,7 @@ func NewIstioVirtualServiceSource(
 		combineFQDNAnnotation:    combineFqdnAnnotation,
 		ignoreHostnameAnnotation: ignoreHostnameAnnotation,
 		serviceInformer:          serviceInformer,
+		ingressInformer:          ingressInformer,
 	}, nil
 }
 
@@ -282,7 +286,7 @@ func (sc *istioVirtualServiceSource) targetsFromVirtualServiceConfig(vsconfig *i
 		if !virtualServiceBindsToGateway(vsconfig, gwconfig, vsHost) {
 			continue
 		}
-		tgs, err := targetsFromGatewayConfig(gwconfig, sc.serviceInformer)
+		tgs, err := targetsFromGatewayConfig(gwconfig, sc.serviceInformer, sc.ingressInformer)
 		if err != nil {
 			return targets, err
 		}

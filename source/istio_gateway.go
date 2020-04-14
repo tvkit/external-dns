@@ -27,15 +27,22 @@ import (
 	log "github.com/sirupsen/logrus"
 	istionetworking "istio.io/api/networking/v1alpha3"
 	istiomodel "istio.io/istio/pilot/pkg/model"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
+	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
 	"sigs.k8s.io/external-dns/endpoint"
+)
+
+const (
+	targetFromServiceAnnotationKey = "external-dns.alpha.kubernetes.io/target-from-service"
+	targetFromIngressAnnotationKey = "external-dns.alpha.kubernetes.io/target-from-ingress"
 )
 
 // istioGatewaySource is an implementation of Source for Istio Gateway objects.
@@ -50,6 +57,7 @@ type istioGatewaySource struct {
 	combineFQDNAnnotation    bool
 	ignoreHostnameAnnotation bool
 	serviceInformer          coreinformers.ServiceInformer
+	ingressInformer          extensionsinformers.IngressInformer
 }
 
 // NewIstioGatewaySource creates a new istioGatewaySource with the given config.
@@ -80,6 +88,7 @@ func NewIstioGatewaySource(
 	// Set resync period to 0, to prevent processing when nothing has changed
 	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, 0, kubeinformers.WithNamespace(namespace))
 	serviceInformer := informerFactory.Core().V1().Services()
+	ingressInformer := informerFactory.Extensions().V1beta1().Ingresses()
 
 	// Add default resource event handlers to properly initialize informer.
 	serviceInformer.Informer().AddEventHandler(
@@ -110,6 +119,7 @@ func NewIstioGatewaySource(
 		combineFQDNAnnotation:    combineFqdnAnnotation,
 		ignoreHostnameAnnotation: ignoreHostnameAnnotation,
 		serviceInformer:          serviceInformer,
+		ingressInformer:          ingressInformer,
 	}, nil
 }
 
@@ -191,7 +201,7 @@ func (sc *istioGatewaySource) endpointsFromTemplate(config *istiomodel.Config) (
 		log.Warn(err)
 	}
 
-	targets, err := targetsFromGatewayConfig(config, sc.serviceInformer)
+	targets, err := targetsFromGatewayConfig(config, sc.serviceInformer, sc.ingressInformer)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +264,7 @@ func gatewaySelectorMatchesServiceSelector(gwSelector, svcSelector map[string]st
 	return true
 }
 
-func targetsFromGatewayConfig(config *istiomodel.Config, serviceInformer coreinformers.ServiceInformer) (targets endpoint.Targets, err error) {
+func targetsFromGatewayConfig(config *istiomodel.Config, serviceInformer coreinformers.ServiceInformer, ingressInformer extensionsinformers.IngressInformer) (targets endpoint.Targets, err error) {
 	gateway := config.Spec.(*istionetworking.Gateway)
 
 	targets = getTargetsFromTargetAnnotation(config.Annotations)
@@ -262,23 +272,41 @@ func targetsFromGatewayConfig(config *istiomodel.Config, serviceInformer coreinf
 		return
 	}
 
-	services, err := serviceInformer.Lister().Services(config.Namespace).List(labels.Everything())
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	for _, service := range services {
-		if !gatewaySelectorMatchesServiceSelector(gateway.Selector, service.Spec.Selector) {
-			continue
-		}
+	var ingress []v1.LoadBalancerIngress
 
-		for _, lb := range service.Status.LoadBalancer.Ingress {
-			if lb.IP != "" {
-				targets = append(targets, lb.IP)
+	if serviceName, exists := config.Annotations[targetFromServiceAnnotationKey]; exists {
+		service, err := serviceInformer.Lister().Services(config.Namespace).Get(serviceName)
+		if err != nil {
+			log.Error(err)
+			return targets, err
+		}
+		ingress = append(ingress, service.Status.LoadBalancer.Ingress...)
+	} else if ingressName, exists := config.Annotations[targetFromIngressAnnotationKey]; exists {
+		ing, err := ingressInformer.Lister().Ingresses(config.Namespace).Get(ingressName)
+		if err != nil {
+			log.Error(err)
+			return targets, err
+		}
+		ingress = append(ingress, ing.Status.LoadBalancer.Ingress...)
+	} else {
+		services, err := serviceInformer.Lister().Services(config.Namespace).List(labels.Everything())
+		if err != nil {
+			log.Error(err)
+			return targets, err
+		}
+		for _, service := range services {
+			if gatewaySelectorMatchesServiceSelector(gateway.Selector, service.Spec.Selector) {
+				ingress = append(ingress, service.Status.LoadBalancer.Ingress...)
 			}
-			if lb.Hostname != "" {
-				targets = append(targets, lb.Hostname)
-			}
+		}
+	}
+
+	for _, lb := range ingress {
+		if lb.IP != "" {
+			targets = append(targets, lb.IP)
+		}
+		if lb.Hostname != "" {
+			targets = append(targets, lb.Hostname)
 		}
 	}
 
@@ -294,7 +322,7 @@ func (sc *istioGatewaySource) endpointsFromGatewayConfig(config istiomodel.Confi
 		log.Warn(err)
 	}
 
-	targets, err := targetsFromGatewayConfig(&config, sc.serviceInformer)
+	targets, err := targetsFromGatewayConfig(&config, sc.serviceInformer, sc.ingressInformer)
 	if err != nil {
 		return nil, err
 	}
